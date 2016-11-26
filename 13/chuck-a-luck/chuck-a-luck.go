@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"math/rand"
     "time"
+    "os"
+    "strconv"
 )
 
 type spieler struct {
     zahl, einsatz, kontostand int
-}
+} 
 
 func (s *spieler) win(gewinn int) {    
     s.kontostand += gewinn 
@@ -18,7 +20,8 @@ func (s *spieler) lose() {
     s.kontostand -= s.einsatz
 }
 
-var s = spieler{kontostand: 1000}
+var kontostand = 1000
+var s spieler
 
 const (
 	beenden = iota
@@ -27,6 +30,11 @@ const (
 
 func main() { 
     rand.Seed(time.Now().UTC().UnixNano())
+    arg, _ := strconv.Atoi(os.Args[1])
+    if arg > 0 {
+        kontostand = arg
+    }    
+    s = spieler{kontostand: kontostand}
     fmt.Println("**** Chuck-a-luck ****\nIn jeder Runde können Sie einen Teil davon auf eine der Zahlen 1 bis 6 setzen. Dann werden 3 Würfel geworfen. Falls Ihr Wert dabei ist, erhalten Sie Ihren Einsatz zurück und zusätzlich Ihren Einsatz für jeden Würfel, der die von Ihnen gesetzte Zahl aufweist")
     result := gameloop()
     exit(result)
@@ -42,7 +50,7 @@ func exit(result int) {
 }
 
 func gameloop() int {
-    var gewinn int
+    var gewinn int    
     for {
         fmt.Printf("Sie haben %d Geldeinheiten\n", s.kontostand)
         s.einsatz = inputEinsatz()
@@ -58,7 +66,6 @@ func gameloop() int {
             s.win(gewinn)	
 			fmt.Printf("Glückwunsch, Sie erhalten %d Geldeinheiten!!\n", gewinn)
 		}
-
 		if s.kontostand <= 0 {	
 			return pleite
 		}
