@@ -1,32 +1,39 @@
 package main
 
-import (
-	"fmt"
-	"bufio" 
-	"os"
-	"strings"
+import ("fmt"; "bufio"; "os"; "strings")
+
+const clear = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
+const defaultWalze = "EKLMF6GDQVZ0TO8Y XUSP2IB4CJ5AR197W3NH"
+const sizeWalze = len(clear)
+
+type enigma struct { 
+    text, walze string       
+}
+
+const (
+    modeEncrypt = iota
+    modeDecrypt
+    modeCrack
 )
 
-const clear string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
-const ANZAHL_ZEICHEN int = len(clear)
-
 func main() {    
-	fmt.Println("*** ENIGMA ***")
+	fmt.Println("*** ENIGMA ***")    
 	text := inputText()
-    mode := inputMode()	
-    var result string    
-	switch mode {
-		case 1: 
-            walzenstellung := inputWalzenstellung()
-            result = encrypt(text, walzenstellung)
+    mode := inputMode()
+    switch mode {
+		case modeEncrypt:  
+            walze := getWalze()
+            e := enigma{text, walze}           
+            result := e.encrypt()
             fmt.Printf("\nVerschlüsselter Text:\n%s\n", result)
-		case 2: 
-            walzenstellung := inputWalzenstellung()
-            result = decrypt(text, walzenstellung)
+		case modeDecrypt: 
+            walze :=getWalze()
+            e := enigma{text, walze}          
+            result := e.decrypt()
             fmt.Printf("\nEntschlüsselter Text:\n%s\n", result)
-        case 3: 
+        case modeCrack: 
             word := inputClearWord()
-            result = crack(text, word)
+            result := crack(text, word)
             if (result == "") {
                 fmt.Println("Suchwort nicht gefunden !")
             } else {
@@ -35,48 +42,40 @@ func main() {
     }          
 }
 
-func getWalze(walzenstellung int) string {
-    walze := "EKLMF6GDQVZ0TO8Y XUSP2IB4CJ5AR197W3NH"
-    for i := 0; i < walzenstellung; i++ {
-        walze = walze[1:len(walze)] + string(walze[0])
-	}
-    return walze
-}
-
-// with slices
-func encrypt(text string, walzenstellung int) string {
-    walze := getWalze(walzenstellung) 
-    result := make([]string, len(text))
-    for it, runechar := range text {
+func (e *enigma) encrypt() string {     
+    result := make([]string, len(e.text))
+    for it, runechar := range e.text {
       	if !strings.ContainsRune(clear, runechar) {			
 			runechar = ' '
 		}
         ic := strings.IndexRune(clear, runechar) 
-        result[it] = string(walze[ic])
-        walze = walze[1:len(walze)] + string(walze[0])
+        result[it] = string(e.walze[ic])
+        e.walze = e.walze[1:len(e.walze)] + string(e.walze[0])
     } 
     return strings.Join(result, "")
- }
+}
 
-//without slices 
-func decrypt(text string, walzenstellung int) string {
-    walze := getWalze(walzenstellung)
+// ohne slice
+func (e *enigma) decrypt() string {
     var result string
-	for _, runechar := range text {
-        i := strings.IndexRune(walze, runechar)
-        result += clear[i:i+1]
-        walze = walze[1:len(walze)] + walze[0:1]
+	for _, runechar := range e.text {
+        i := strings.IndexRune(e.walze, runechar)
+        result += string(clear[i])
+        e.walze = e.walze[1:len(e.walze)] + string(e.walze[0])
 	}	
     return result
 }
 
-func crack(text string, word string) string {
-    var result string
-    for i := 0; i < ANZAHL_ZEICHEN; i++ {        
-        result = decrypt(text, i)
-        if (strings.Contains(text, word)) {
-            return result
-        }			
+func crack(text string, word string) (result string) {   
+    var e enigma
+    walze := defaultWalze
+    for walzenstellung := 0; walzenstellung < sizeWalze; walzenstellung++ {        
+        e = enigma{text, walze}      
+        result = e.decrypt()
+        if (strings.Contains(result, word)) {
+            return
+        }	
+        walze = walze[1:len(walze)] + string(walze[0])		
 	}
     return ""
 }
@@ -97,28 +96,33 @@ func inputText() string {
     return text
 }
 
-func inputWalzenstellung() int {
+func getWalze() (walze string) {
     var walzenstellung int
-    fmt.Printf("Bitte Walzenstellung eingeben (0 - %d): ", ANZAHL_ZEICHEN)
+    walze = defaultWalze
+    fmt.Printf("Bitte Walzenstellung eingeben (0 - %d): ", 37)
 	for {
         fmt.Scanf("%d", &walzenstellung)
         if walzenstellung >= 0 && walzenstellung <= 37 {
-            return walzenstellung
+            break
         } else {
             fmt.Print("Bitte Wert zwischen 0 und 37 eingeben: ")
         }  
-    }  
+    }
+    for i := 0; i < walzenstellung; i++ {
+        walze = walze[1:len(walze)] + string(walze[0])
+	} 
+    return 
 }
 
 func inputMode() int {
     var mode int
-    fmt.Println("1 - Verschlüsseln\n2 - Entschlüsseln\n3 - Text Knacken")
+    fmt.Println("0 - Verschlüsseln\n1 - Entschlüsseln\n2 - Text Knacken")
     for {
        	fmt.Scanf("%d", &mode)
-        if mode >= 1 && mode <= 3 {
+        if mode >= 0 && mode <= 2 {
             return mode
         } else {
-            fmt.Print("Bitte Wert zwischen 1 und 3 eingeben")
+            fmt.Print("Bitte Wert zwischen 0 und 2 eingeben")
         }  
     } 
 }
