@@ -9,80 +9,72 @@ import (
 )
 
 type spieler struct {
-    zahl, einsatz, kontostand int
+    kontostand int
 } 
 
 func (s *spieler) win(gewinn int) {    
     s.kontostand += gewinn 
 }
 
-func (s *spieler) lose() {
-    s.kontostand -= s.einsatz
+func (s *spieler) lose(einsatz int) {
+    s.kontostand -= einsatz
 }
 
-var kontostand = 1000
-var s spieler
-
 const (
-	beenden = iota
+    beenden = iota 
 	pleite
 )
 
 func main() { 
     rand.Seed(time.Now().UTC().UnixNano())
-    arg, _ := strconv.Atoi(os.Args[1])
-    if arg > 0 {
-        kontostand = arg
-    }    
-    s = spieler{kontostand: kontostand}
-    fmt.Println("**** Chuck-a-luck ****\nIn jeder Runde können Sie einen Teil davon auf eine der Zahlen 1 bis 6 setzen. Dann werden 3 Würfel geworfen. Falls Ihr Wert dabei ist, erhalten Sie Ihren Einsatz zurück und zusätzlich Ihren Einsatz für jeden Würfel, der die von Ihnen gesetzte Zahl aufweist")
-    result := gameloop()
-    exit(result)
-}
-
-func exit(result int) {
-    if result == beenden {
-         fmt.Printf("Glückwunsch, Sie verlassen das Casino mit %d Geldeinheiten !!\n", s.kontostand)
-    } else {
-        fmt.Printf("Du bist leider Pleite !!!\n")
-    }
-
-}
-
-func gameloop() int {
-    var gewinn int    
-    for {
-        fmt.Printf("Sie haben %d Geldeinheiten\n", s.kontostand)
-        s.einsatz = inputEinsatz()
-        if s.einsatz == 0 {       
-            return beenden
+    kontostand := 1000   
+    if len(os.Args) > 1 {
+        arg, _ := strconv.Atoi(os.Args[1])
+        if arg > 0 {
+            kontostand = arg
         }        
-        s.zahl = inputZahl() 
-        gewinn = rollDice(&s)
+    } 
+    s1 := spieler{kontostand: kontostand}
+    fmt.Println("**** Chuck-a-luck ****\nIn jeder Runde können Sie einen Teil davon auf eine der Zahlen 1 bis 6 setzen. Dann werden 3 Würfel geworfen. Falls Ihr Wert dabei ist, erhalten Sie Ihren Einsatz zurück und zusätzlich Ihren Einsatz für jeden Würfel, der die von Ihnen gesetzte Zahl aufweist")
+    var zahl, gewinn, einsatz, spielStatus int   
+    for {
+        fmt.Printf("Sie haben %d Geldeinheiten\n", s1.kontostand)
+        einsatz = inputEinsatz(s1.kontostand)
+        if einsatz == 0 {
+            spielStatus = beenden
+            break
+        }                  
+        zahl = inputZahl() 
+        gewinn = berechneGewinn(einsatz, zahl)
 		if gewinn == 0 {
-            s.lose()
+            s1.lose(einsatz)
 			fmt.Printf("Pech, da war nichts fuer Sie dabei!!\n")
 		} else {
-            s.win(gewinn)	
+            s1.win(gewinn)	
 			fmt.Printf("Glückwunsch, Sie erhalten %d Geldeinheiten!!\n", gewinn)
 		}
-		if s.kontostand <= 0 {	
-			return pleite
+		if s1.kontostand <= 0 {	
+			spielStatus = pleite
+            break
 		}
 	}
+    switch spielStatus {
+        case beenden: fmt.Printf("Glückwunsch, Sie verlassen das Casino mit %d Geldeinheiten !!\n", s1.kontostand)
+        case pleite: fmt.Printf("Sie sind leider Pleite !!!\n")
+    }
 }
 
-func rollDice(s *spieler) int {
-    var tmp, gewinn int
+func berechneGewinn(einsatz, zahl int) (gewinn int) {
+    var tmp int
     fmt.Printf("Die Würfel sind gefallen: ")
     for i := 1; i <= 3; i++ {
         tmp = rand.Intn(6)
         fmt.Printf("%d ",tmp)
-        if tmp == s.zahl {
-            gewinn += s.einsatz
+        if tmp == zahl {
+            gewinn += einsatz
         }
     } 
-    return gewinn   
+    return    
 }
 
 func inputZahl() (zahl int) {
@@ -101,18 +93,19 @@ func inputZahl() (zahl int) {
 	}    
 }
 
-func inputEinsatz() (einsatz int) {  
+func inputEinsatz(kontostand int) (einsatz int) { 
     for {
         fmt.Print("Ihr Einsatz: ")    
-        fmt.Scanf("%d", &einsatz) 
-        if einsatz > s.kontostand {
+        fmt.Scanf("%d", &einsatz)
+        if einsatz > kontostand {
             fmt.Printf("Sie haben nicht genügend Geld !!\n")
             continue
         } else if einsatz < 0 {
             fmt.Printf("Einsatz muss über 0 sein !!\n")	
             continue
         } else {
-            return 
-        }       
-    }   
+            break
+        }
+    } 
+    return
 }
