@@ -89,7 +89,6 @@ func zeichneSpielfeld() {
 		}		
 	}
 	fmt.Println()
-
 	for i = 0; i < spielfeldbreite; i++ {
 		if feldBelegt(i) {
 			fmt.Print("/\\ ")
@@ -98,7 +97,6 @@ func zeichneSpielfeld() {
 		}	
 	}
 	fmt.Println()
-
 	for i = 0; i < spielfeldbreite; i++ {
 		fmt.Printf("%02d ", i)
 	}
@@ -126,8 +124,7 @@ func feldBelegt(pos uint) (bool) {
 }
 
 func pruefeSpielstand() bool {
-	var kreuze uint;
-	var i uint;
+	var kreuze, i uint;
 	for i = 0; i < spielfeldbreite; i++ {
     	if feldBelegt(i) {
 			kreuze++

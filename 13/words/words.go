@@ -1,122 +1,164 @@
 package main
 
-import ("fmt"; "container/list"; "os";  "bufio"; "strings")
+import ("fmt"; "os";  "bufio"; "strings") 
 
-const FILENAME = "cities.txt"
+const (
+	candidatesLeft = iota
+	noCandidatesLeft
+    noCitiesLeft
+)
+
+const (
+	begin = iota
+	end    
+)
 
 func main() {
-    chain := list.New()
-    wordList := readFile()
-    hintList := wordList
-    candidatesLeft := true
-    for (candidatesLeft) {
-        fmt.Printf("%d Words left\n", wordList.Len())
-        word := inputNextWord()  
-        if word == "" {
-            printHintList(hintList)
+    const filename = "cities.txt"
+    cities := readFromFile(filename)
+    var chain []string
+    gameStatus := checkGameStatus(chain, cities)
+    for gameStatus == candidatesLeft  {        
+        fmt.Printf("%d Words left\n", len(cities))
+        inputCity := strings.TrimRight(getInputCity(), "\n") 
+        if inputCity == "" {            
+            printHintList(findCandidates(chain, cities))
         } else {
-            e, found := containsString(wordList, word)
+            found, cityPos := searchCity(inputCity, cities)       
             if found {
-                if chain.Len() == 0 {
-                    wordList, chain = moveBegin(wordList, chain, e)                    
-                } else {
-                    if fitsBegin(chain, word) {
-                        wordList, chain = moveBegin(wordList, chain, e)
-                    } else if fitsEnd(chain, word) {
-                        wordList, chain = moveEnd(wordList, chain, e)
+                    fits, chainPos := checkChain(cities[cityPos], chain)
+                    if fits {
+                        move(&chain, &cities, cityPos, chainPos)
+                        printChain(chain)                
+                        gameStatus = checkGameStatus(chain, cities)                   
                     } else {
-                        fmt.Println("Word doesn't fit")
-                    }
-                } 
-                printChain(chain)
-                hintList = getHintList(wordList, chain)
-                candidatesLeft = hintList.Len() > 0             
+                        fmt.Println("Word doesn't fit")                         
+                    }                         
             } else {
                 fmt.Println("Word not found in list")
-            }
+            }         
+        }         
+    }
+    switch gameStatus {
+        case noCandidatesLeft: fmt.Printf("No further candidates available, ending. %d words in Chain", len(chain)) 
+        case noCitiesLeft: fmt.Printf("No further cities available, ending. %d words in Chain", len(chain)) 
+    }  
+}
+
+func move(chain, cities *[]string, cityPos, chainPos int) {
+    if chainPos == begin { 
+        fmt.Println("begin")      
+        *chain = append(*chain, "")
+        copy((*chain)[1:], (*chain)[:])
+        (*chain)[0] = (*cities)[cityPos] 
+    } else if chainPos == end {
+        fmt.Println("end")
+        *chain = append(*chain, (*cities)[cityPos])
+    }
+    *cities = append((*cities)[:cityPos], (*cities)[cityPos+1:]...)    
+}
+
+func checkChain(city string, chain []string) (bool, int) {
+    if len(chain) == 0 {
+        return true, begin
+    }
+    if fitsBegin(city, chain[0]) {
+        return true, begin
+    }
+    if fitsEnd(city, chain[len(chain)-1]) {
+        return true, end
+    }
+    return false, 0
+}
+
+func fitsBegin(city, firstCityInChain string) bool { 
+    city = strings.ToUpper(city)
+    cityLastChar := string(city[len(city)-1])
+    return strings.HasPrefix(firstCityInChain, cityLastChar)
+}
+
+func fitsEnd(city, lastCityInChain string) bool {
+    lastCityInChain = strings.ToUpper(lastCityInChain) 
+    city = strings.ToUpper(city) 
+    cityFirstChar := string((city)[0])  
+    return strings.HasSuffix(lastCityInChain, cityFirstChar)
+}
+
+func readFromFile(filename string) (cities []string) {   
+    file, _ := os.Open(filename)
+    scanner := bufio.NewScanner(file)
+    scanner.Split(bufio.ScanLines) 
+    {
+        var city string
+        for i := 0; scanner.Scan(); i++ {
+            city = scanner.Text()        
+            cities = append(cities, city)
         } 
     }
-    fmt.Printf("No further words matching, ending. %d words in Chain", chain.Len()) 
+    return
 }
 
-func moveBegin(l, c *list.List, e *list.Element) (*list.List, *list.List) {
-    c.PushFront(e.Value)     
-    l.Remove(e)
-    return l, c
+func findCandidates(chain, cities []string) ([]string) {
+    if len(chain) == 0  || len(cities) == 0 { 
+        return cities 
+    }
+    candidates := []string{}      
+    firstCityInChain := chain[0]
+    lastCityInChain := chain[len(chain)-1]
+    for _, city := range cities {       
+        if fitsBegin(city, firstCityInChain) {          
+            candidates = append(candidates, city)            
+        } else if fitsEnd(city, lastCityInChain) {           
+            candidates = append(candidates, city)
+        }   
+    }     
+    return candidates
 }
 
-func moveEnd(l, c *list.List, e *list.Element) (*list.List, *list.List) {
-    c.PushBack(e.Value)     
-    l.Remove(e)
-    return l, c
+func checkGameStatus(chain, cities []string) (int) {
+    if len(cities) == 0 {
+        return noCitiesLeft
+    }
+    if len(chain) == 0 {
+        return candidatesLeft
+    }
+    candidates := findCandidates(chain, cities) 
+    if len(candidates) != 0 {
+        return candidatesLeft    
+    } else {
+        return noCandidatesLeft
+    }
 }
 
-func printChain(c *list.List) {
-    fmt.Print(c.Front().Value)
-    fmt.Print(" ... ")
-    fmt.Print(c.Back().Value)
-    fmt.Println()
+func getInputCity() (inputCity string) { 
+    fmt.Print("Next City: ")
+    tmp := bufio.NewReader(os.Stdin)
+	inputCity, _ = tmp.ReadString('\n')
+    inputCity = strings.TrimSpace(inputCity)
+    return
 }
 
-func printHintList(h *list.List) {
-    for e := h.Front(); e != nil; e = e.Next() {                        
-        fmt.Printf("%s, ", e.Value)        
+func printHintList(candidates []string) {    
+    for _, city := range candidates {
+            fmt.Printf("%s, ", city) 
     }
     fmt.Println()
 }
 
-func fitsBegin(c *list.List, s string) bool {         
-    v, _ := c.Front().Value.(string)    
-    s = strings.ToUpper(s)
-    s = string(s[len(s)-1])
-    return strings.HasPrefix(v, s)
-}
-
-func fitsEnd(c *list.List, s string) bool {
-    v, _ := c.Back().Value.(string) 
-    v = strings.ToUpper(v) 
-    s = string((s)[0])  
-    return strings.HasSuffix(v, s)
-}
-
-func containsString(l *list.List, s string) (*list.Element, bool) {
-    var e *list.Element
-    for e = l.Front(); e != nil; e = e.Next() {
-		if e.Value == s {
-            return e, true
+func searchCity(inputCity string, cities []string) (bool, int) {
+    for i, city := range cities {
+		if city == inputCity {
+            return true, i
         }
 	}
-    return e, false   
+    return false, 0  
 }
 
-func readFile() *list.List {
-    wordList := list.New()
-    inFile, _ := os.Open(FILENAME)
-    scanner := bufio.NewScanner(inFile)
-    scanner.Split(bufio.ScanLines) 
-    var item string
-    for i := 0; scanner.Scan(); i++ {
-        item = scanner.Text()        
-        wordList.PushBack(item)
+func printChain(chain []string) {
+    if len(chain) != 0 {
+        fmt.Print(chain[0])
+        fmt.Print(" ... ")
+        fmt.Print(chain[len(chain)-1])
+        fmt.Println()
     }
-    return wordList
-}
-
-func inputNextWord() string {  
-    var word string  
-    fmt.Print("Next Word: ")
-    in := bufio.NewReader(os.Stdin)
-	word, _ = in.ReadString('\n')
-    word = strings.TrimSpace(word)
-    return word
-}
-
-func getHintList(l, c *list.List) *list.List {
-    hintList := list.New()
-    for e := l.Front(); e != nil; e = e.Next() {                   
-        if fitsBegin(c, e.Value.(string)) ||  fitsEnd(c, e.Value.(string)) {
-            hintList.PushBack(e.Value) 
-        }            
-    }
-    return hintList    
 }
