@@ -39,7 +39,7 @@ func main() {
             } else {
                 fmt.Printf("Gecrackter Text:\n%s\n", result);
             }
-    }          
+    }     
 }
 
 func (e *enigma) encrypt() string {     

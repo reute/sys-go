@@ -10,59 +10,59 @@ type file struct {
     path string
 }
 
-var file_list *list.List
+var fileList *list.List
 
 func main() {
-    file_list = list.New()
-    add_initial_file()
+    fileList = list.New()
+    addInitialFile()
     if len(os.Args) > 1 {
-        scan_dir(os.Args[1])
+        scanDir(os.Args[1])
     } else {
-        scan_dir(".")
+        scanDir(".")
     }
     printList()
 }
 
-func add_file(new_file file) {
+func addFile(newFile file) {
     var inserted bool
-    for e := file_list.Front(); e != nil; e = e.Next() {
-        e_size := ((e.Value).(file)).size
-        if e_size >= new_file.size {
-            file_list.InsertBefore(new_file, e)
+    for e := fileList.Front(); e != nil; e = e.Next() {
+        elSize := ((e.Value).(file)).size
+        if elSize >= newFile.size {
+            fileList.InsertBefore(newFile, e)
             inserted = true
             break
         }
     } 
     if !inserted {
-        file_list.PushBack(new_file)
+        fileList.PushBack(newFile)
     }
-    if file_list.Len() == MAX_FILES + 1 {
-       file_list.Remove(file_list.Front()) 
+    if fileList.Len() == MAX_FILES + 1 {
+       fileList.Remove(fileList.Front()) 
     } 
 }
 
 func printList() { 
     fmt.Println("Result: ")
-    for e := file_list.Back(); e != nil; e = e.Prev() {                   
+    for e := fileList.Back(); e != nil; e = e.Prev() {                   
         fmt.Println(e.Value)
     }
 }
 
-func add_initial_file() {
-    add_file(file{0, "dummy", "."})
+func addInitialFile() {
+    addFile(file{0, "dummy", "."})
 }
 
-func scan_dir(path string) {
+func scanDir(path string) {
     items, _ := ioutil.ReadDir(path)
     for _, item := range items {
-        item_name := item.Name()
+        itemName := item.Name()
         if item.IsDir() {
-            scan_dir(path + "/" + item_name)
+            scanDir(path + "/" + itemName)
         } else  {
-            item_size := item.Size()
-            e_size := ((file_list.Front().Value).(file)).size 
-            if item_size > e_size {
-                add_file(file{item_size, item.Name(), path})
+            itemSize := item.Size()
+            elSize := ((fileList.Front().Value).(file)).size 
+            if itemSize > elSize {
+                addFile(file{itemSize, item.Name(), path})
             }           
         }
     } 

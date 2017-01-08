@@ -3,14 +3,11 @@ package main
 import ("fmt"; "os";  "bufio"; "strings") 
 
 const (
-	candidatesLeft = iota
+	running = iota
 	noCandidatesLeft
     noCitiesLeft
-)
-
-const (
-	begin = iota
-	end    
+    begin
+    end
 )
 
 func main() {
@@ -18,7 +15,7 @@ func main() {
     cities := readFromFile(filename)
     var chain []string
     gameStatus := checkGameStatus(chain, cities)
-    for gameStatus == candidatesLeft  {        
+    for gameStatus == running  {        
         fmt.Printf("%d Words left\n", len(cities))
         inputCity := strings.TrimRight(getInputCity(), "\n") 
         if inputCity == "" {            
@@ -120,11 +117,11 @@ func checkGameStatus(chain, cities []string) (int) {
         return noCitiesLeft
     }
     if len(chain) == 0 {
-        return candidatesLeft
+        return running
     }
     candidates := findCandidates(chain, cities) 
     if len(candidates) != 0 {
-        return candidatesLeft    
+        return running    
     } else {
         return noCandidatesLeft
     }

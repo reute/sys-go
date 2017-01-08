@@ -22,6 +22,7 @@ func (s *spieler) lose(einsatz int) {
 
 const (
     beenden = iota 
+    laufend
 	pleite
 )
 
@@ -37,12 +38,12 @@ func main() {
     s1 := spieler{kontostand: kontostand}
     fmt.Println("**** Chuck-a-luck ****\nIn jeder Runde können Sie einen Teil davon auf eine der Zahlen 1 bis 6 setzen. Dann werden 3 Würfel geworfen. Falls Ihr Wert dabei ist, erhalten Sie Ihren Einsatz zurück und zusätzlich Ihren Einsatz für jeden Würfel, der die von Ihnen gesetzte Zahl aufweist")
     var zahl, gewinn, einsatz, spielStatus int   
-    for {
+    for spielStatus == laufend {
         fmt.Printf("Sie haben %d Geldeinheiten\n", s1.kontostand)
         einsatz = inputEinsatz(s1.kontostand)
         if einsatz == 0 {
             spielStatus = beenden
-            break
+            continue
         }                  
         zahl = inputZahl() 
         gewinn = berechneGewinn(einsatz, zahl)
@@ -55,7 +56,7 @@ func main() {
 		}
 		if s1.kontostand <= 0 {	
 			spielStatus = pleite
-            break
+            continue
 		}
 	}
     switch spielStatus {
