@@ -19,35 +19,59 @@ func main() {
         filename = os.Args[3]
     }
     content := readFile(filename) 
-    fmt.Println(content)  
     fmt.Println(chars1)    
-    fmt.Println(chars2)  
+    fmt.Println(chars2) 
+    fmt.Println(content)  
+    chars1 = expandRange(chars1)
+    chars2 = expandRange(chars2)
+    fmt.Println("chars1", chars1)
+    fmt.Println("chars2", chars2)
     newCharset := createNewCharset(chars1, chars2)
     fmt.Println("charset", charset)
     fmt.Println("newcharset:", newCharset)
     newContent := replaceChars(content, newCharset)
-    fmt.Println("newContent", newContent)
     writeFile(filename, newContent)
+}
+
+func expandRange(chars string) string {
+    expChars := make([]byte, 0, 256)
+    var from, to byte
+    for i := 0; i < len(chars); i++ {        
+        if chars[i] == '-' {
+            from = chars[i-1]
+            to = chars[i+1]
+            // fmt.Println("from", from)
+            // fmt.Println("to", to)
+            from++       
+            for i := from; i <= to; i++ {
+                expChars = append(expChars, i)                
+            }
+            i++
+        } else {
+            expChars = append(expChars, chars[i])
+        }        
+    }
+    return string(expChars)
 }
 
 func createNewCharset(chars1, chars2 string) (newCharset string) {
     tmp := []byte(charset)
-    icharset := 0
-    for ichars2, val := range chars1 {
-        icharset = strings.IndexRune(charset, val)
-        tmp[icharset] = chars2[ichars2]
+    iet := 0
+    for i2, val := range chars1 {
+        iet = strings.IndexRune(charset, val)
+        tmp[iet] = chars2[i2]
     }
     newCharset = string(tmp)
     return 
 }
 
 func replaceChars(content, newCharset string) (newContent []byte) {    
-    var icharset int
+    var iet int
     newContent = []byte(content)
     for icon, charcon := range content {
-        icharset = strings.IndexRune(charset, charcon)
-      	if  icharset != -1 {
-            newContent[icon] = newCharset[icharset]
+        iet = strings.IndexRune(charset, charcon)
+      	if  iet != -1 {
+            newContent[icon] = newCharset[iet]
         }	
     }
     return
