@@ -5,10 +5,7 @@ import (
     "io/ioutil"
 	"fmt"
     "strings"
-)
-
-const (
-    charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    "math"
 )
 
 func main() {    
@@ -18,32 +15,30 @@ func main() {
         chars2 = os.Args[2]
         filename = os.Args[3]
     }
-    content := readFile(filename) 
+    text := readFile(filename) 
     fmt.Println(chars1)    
     fmt.Println(chars2) 
-    fmt.Println(content)  
+    fmt.Println(text)  
     chars1 = expandRange(chars1)
     chars2 = expandRange(chars2)
     fmt.Println("chars1", chars1)
     fmt.Println("chars2", chars2)
-    newCharset := createNewCharset(chars1, chars2)
-    fmt.Println("charset", charset)
+    newCharset := createNewCharset([]byte(chars1), []byte(chars2))
     fmt.Println("newcharset:", newCharset)
-    newContent := replaceChars(content, newCharset)
-    writeFile(filename, newContent)
+    newText := replaceChars(text, newCharset)
+    writeFile(filename, newText)
 }
 
 func expandRange(chars string) string {
-    expChars := make([]byte, 0, 256)
+    expChars := make([]byte, 0, math.MaxInt8)
     var from, to byte
     for i := 0; i < len(chars); i++ {        
         if chars[i] == '-' {
             from = chars[i-1]
             to = chars[i+1]
             // fmt.Println("from", from)
-            // fmt.Println("to", to)
-            from++       
-            for i := from; i <= to; i++ {
+            // fmt.Println("to", to)               
+            for i := from+1; i <= to; i++ {
                 expChars = append(expChars, i)                
             }
             i++
@@ -54,27 +49,21 @@ func expandRange(chars string) string {
     return string(expChars)
 }
 
-func createNewCharset(chars1, chars2 string) (newCharset string) {
-    tmp := []byte(charset)
-    iet := 0
-    for i2, val := range chars1 {
-        iet = strings.IndexRune(charset, val)
-        tmp[iet] = chars2[i2]
+func createNewCharset(chars1, chars2 []byte) (newCharset [math.MaxInt8]byte) {
+    for i, val := range chars1 {       
+        newCharset[val] = chars2[i]
     }
-    newCharset = string(tmp)
     return 
 }
 
-func replaceChars(content, newCharset string) (newContent []byte) {    
-    var iet int
-    newContent = []byte(content)
-    for icon, charcon := range content {
-        iet = strings.IndexRune(charset, charcon)
-      	if  iet != -1 {
-            newContent[icon] = newCharset[iet]
+func replaceChars(text string, newCharset [math.MaxInt8]byte) (newText []byte) {
+    newText = []byte(text)
+    for indexContent, val := range text {       
+      	if  newCharset[val] != 0 {
+            newText[indexContent] = newCharset[val]
         }	
     }
-    return
+    return 
 }
 
 func readFile(filename string) string {
