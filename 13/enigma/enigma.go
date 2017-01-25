@@ -80,6 +80,7 @@ func crack(text string, word string) (result string) {
     return ""
 }
 
+
 func inputClearWord() string {
     var word string
     fmt.Println("Bitte Suchwort eingeben: ")
