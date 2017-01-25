@@ -20,8 +20,9 @@ func (s *stack) Pop() float64 {
 
 func main() {    
     fmt.Print("Function: ")
-    function := inputFunction()  
-    result := calculate(function)  
+    // function := inputFunction()  
+    function := "1 2 +"
+    result := calculate(strings.Fields(function))
     fmt.Printf("Result : %f\n", result)
 }
 

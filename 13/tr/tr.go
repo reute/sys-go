@@ -50,8 +50,8 @@ func expandRange(chars string) string {
 }
 
 func createNewCharset(chars1, chars2 []byte) (newCharset [math.MaxInt8]byte) {
-    for i, val := range chars1 {       
-        newCharset[val] = chars2[i]
+    for indexChars1, val := range chars1 {       
+        newCharset[val] = chars2[indexChars1]
     }
     return 
 }
