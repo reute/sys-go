@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"math/rand"
-    "time"
+	"os"
+	"time"
 )
 
 const spielfeldbreite = 23
@@ -19,7 +19,7 @@ const (
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	fmt.Println("*** Drei Kreuze ***\nGegeben ist eine Kette von 23 freien Feldern. In jedem Zug setzt jeder der Spieler ein X auf ein freies Feld. Wenn dadurch drei oder mehr X benachbart sind, hat der Spieler gewonnen.")
-	var amZug, spielfeld uint	
+	var amZug, spielfeld uint
 	zeichneSpielfeld(spielfeld)
 	var anfangen string
 	fmt.Print("Wollen Sie anfangen? (j/n):  ")
@@ -32,9 +32,9 @@ func main() {
 	var spielstatus uint = laufend
 	for spielstatus == laufend {
 		neuerZug(amZug, &spielfeld)
-        zeichneSpielfeld(spielfeld)
+		zeichneSpielfeld(spielfeld)
 		spielstatus = pruefeSpielstand(spielfeld, amZug)
-		amZug = (amZug + 1) % 2		
+		amZug = (amZug + 1) % 2
 	}
 	if spielstatus == spielerGewinnt {
 		fmt.Println("Der Spieler gewinnt !")
@@ -45,15 +45,15 @@ func main() {
 
 func neuerZug(amZug uint, spielfeld *uint) {
 	var zug uint
-	if amZug == computer {		
+	if amZug == computer {
 		for {
-			zug  = uint(rand.Intn(int(spielfeldbreite)))
+			zug = uint(rand.Intn(int(spielfeldbreite)))
 			if feldBelegen(zug, spielfeld) {
 				break
 			}
 		}
 		fmt.Printf("Der Computer belegt das Feld %d\n", zug)
-	} else {		
+	} else {
 		for {
 			fmt.Print("Ihr Zug : ")
 			fmt.Scanf("%d", &zug)
@@ -64,11 +64,11 @@ func neuerZug(amZug uint, spielfeld *uint) {
 			if zug < 0 || zug > spielfeldbreite {
 				fmt.Printf("Bitte Zahl zwischen 0 und %d eingeben\n", spielfeldbreite-1)
 				continue
-			}	
+			}
 			if feldBelegen(zug, spielfeld) {
 				break
 			} else {
-				fmt.Println("Feld ist schon belegt !")  
+				fmt.Println("Feld ist schon belegt !")
 			}
 		}
 	}
@@ -81,7 +81,7 @@ func zeichneSpielfeld(spielfeld uint) {
 			fmt.Print("\\/ ")
 		} else {
 			fmt.Print("   ")
-		}		
+		}
 	}
 	fmt.Println()
 	for i = 0; i < spielfeldbreite; i++ {
@@ -89,7 +89,7 @@ func zeichneSpielfeld(spielfeld uint) {
 			fmt.Print("/\\ ")
 		} else {
 			fmt.Print("   ")
-		}	
+		}
 	}
 	fmt.Println()
 	for i = 0; i < spielfeldbreite; i++ {
@@ -98,7 +98,7 @@ func zeichneSpielfeld(spielfeld uint) {
 	fmt.Println()
 }
 
-func feldBelegen(pos uint, spielfeld *uint) (bool) {
+func feldBelegen(pos uint, spielfeld *uint) bool {
 	if feldBelegt(pos, *spielfeld) {
 		return false
 	}
@@ -108,33 +108,32 @@ func feldBelegen(pos uint, spielfeld *uint) (bool) {
 	return true
 }
 
-func feldBelegt(pos uint, spielfeld uint) (bool) {
+func feldBelegt(pos uint, spielfeld uint) bool {
 	var bit uint = 1
 	bit = bit << pos
 	if (bit & spielfeld) == bit {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func pruefeSpielstand(spielfeld, amZug uint) (spielstatus uint) {
-	var kreuze, i uint;
-	spielstatus = laufend  
+	var kreuze, i uint
+	spielstatus = laufend
 	for i = 0; i < spielfeldbreite; i++ {
-    	if feldBelegt(i, spielfeld) {
+		if feldBelegt(i, spielfeld) {
 			kreuze++
-    	} else {
-        	kreuze = 0    
-   		} 
-   		if kreuze == 3 {
+		} else {
+			kreuze = 0
+		}
+		if kreuze == 3 {
 			if amZug == spieler {
 				spielstatus = spielerGewinnt
 			} else {
 				spielstatus = computerGewinnt
 			}
-			break			   			
-   		} 			
+			break
+		}
 	}
 	return
 }
