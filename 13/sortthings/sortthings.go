@@ -25,7 +25,6 @@ type mountains struct {
 func main() {
 	var from, to int
 	all_mountains := readFile()
-	fmt.Println(all_mountains)
 	game := mountains{
 		unsorted: make([]*mountain, len(all_mountains)),
 		sorted:   make([]*mountain, 0),
@@ -57,12 +56,11 @@ func main() {
 func isSorted(mountains []*mountain) bool {
 	var tmp, hightest int
 	for _, element := range mountains {
-		tmp = (*element).height
-		if tmp > hightest {
-			hightest = tmp
-		} else {
+		tmp = element.height
+		if tmp < hightest {
 			return false
 		}
+		hightest = tmp
 	}
 	return true
 }
@@ -110,6 +108,6 @@ func (m *mountains) move(from int, to int) {
 
 func printMountains(mountains []*mountain) {
 	for i, element := range mountains {
-		fmt.Printf(" %d: %s\n", i, (*element).name)
+		fmt.Printf(" %d: %s\n", i, element.name)
 	}
 }
