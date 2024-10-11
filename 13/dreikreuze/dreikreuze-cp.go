@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"strings"
+	"time"
 )
 
 const (
@@ -14,55 +16,67 @@ const (
 )
 
 type Player interface {
-	move(board *uint) (move uint)
-	printMove(move uint)
+	move() uint
+	isHuman() bool
 }
 
 type ComputerPlayer struct {
-	name string
+	name  string
+	board *uint
 }
 
 type HumanPlayer struct {
-	name string
+	name  string
+	board *uint
 }
 
 func main() {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	startGame()
 }
 
 func startGame() {
-	fmt.Println("*** Tic Tac Toe ***")
-	fmt.Println("Given a chain of 23 free fields. Each player takes turns placing an X on an empty field.")
-	fmt.Println("If three or more X's are adjacent, the player wins.")
-
-	hplayer := HumanPlayer{name: "RUDI"}
-	cplayer := ComputerPlayer{name: "PETER"}
+	intro()
+	var board uint
+	hplayer := HumanPlayer{name: "RUDI", board: &board}
+	cplayer := ComputerPlayer{name: "PETER", board: &board}
 	var currentPlayer, nextPlayer Player
 
-	var board uint
 	var start string
 	fmt.Print("Do you want to start? (y/n): ")
 	fmt.Scanf("%s", &start)
-
-	if start == "y" {
-		currentPlayer = hplayer
-		nextPlayer = cplayer
+	if strings.ToLower(start) == "y" {
+		currentPlayer = &cplayer
+		nextPlayer = &hplayer
 	} else {
-		currentPlayer = cplayer
-		nextPlayer = cplayer
+		currentPlayer = &hplayer
+		nextPlayer = &cplayer
 	}
 
 	gameStatus := running
-	for gameStatus == running {
-		printBoard(board)
-		gameStatus = nextMove(currentPlayer, &board)
-		currentPlayer, nextPlayer = nextPlayer, currentPlayer
-	}
 	printBoard(board)
+	for gameStatus == running {
+		currentPlayer, nextPlayer = nextPlayer, currentPlayer
+		move := currentPlayer.move()
+		if move == quit {
+			break
+		}
+		printBoard(board)
+		gameStatus = checkGameStatus(board, currentPlayer)
+	}
+	printGameResult(gameStatus)
+}
 
+func intro() {
+	fmt.Println("*** Tic Tac Toe ***")
+	fmt.Println("Given a chain of 23 free fields. Each player takes turns placing an X on an empty field.")
+	fmt.Println("If three or more X's are adjacent, the player wins.")
+}
+
+func printGameResult(gameStatus int) {
 	switch gameStatus {
 	case quit:
-		fmt.Println("Player quits")
+		fmt.Println("Player quits game")
 	case playerWins:
 		fmt.Println("Player wins!")
 	case computerWins:
@@ -81,70 +95,63 @@ func isOccupied(pos uint, board uint) bool {
 }
 
 func checkGameStatus(board uint, currentPlayer Player) int {
-	var crosses uint
-	for i := uint(0); i < boardWidth; i++ {
-		if isOccupied(i, board) {
+	crosses := 0
+	for i := 0; i < boardWidth; i++ {
+		if isOccupied(uint(i), board) {
 			crosses++
-		} else {
-			crosses = 0
-		}
-		if crosses == 3 {
-			_, ok := currentPlayer.(HumanPlayer)
-			if ok {
-				return playerWins
-			} else {
+			if crosses == 3 {
+				if currentPlayer.isHuman() {
+					return playerWins
+				}
 				return computerWins
 			}
+		} else {
+			crosses = 0
 		}
 	}
 	return running
 }
 
-func (ComputerPlayer) move(board *uint) (move uint) {
+func (c *ComputerPlayer) move() uint {
 	for {
-		move = uint(rand.Intn(int(boardWidth)))
-		if !isOccupied(move, *board) {
-			occupyField(move, board)
-			return
+		move := uint(rand.Intn(int(boardWidth)))
+		if !isOccupied(move, *c.board) {
+			occupyField(move, c.board)
+			fmt.Printf("Computer occupies field %d\n", move)
+			return move
 		}
 	}
 }
 
-func (HumanPlayer) move(board *uint) (move uint) {
+func (h *HumanPlayer) move() uint {
+	var input_pl int
 	for {
 		fmt.Print("Your move: ")
-		fmt.Scanf("%d", &move)
-		if move == 99 {
+		fmt.Scanf("%d", &input_pl)
+		if input_pl == 99 {
 			return quit
 		}
-		if move < 0 || move >= boardWidth {
+		if input_pl < 0 || input_pl >= boardWidth {
 			fmt.Printf("Please enter a number between 0 and %d\n", boardWidth-1)
 			continue
 		}
-		if isOccupied(move, *board) {
+		move := uint(input_pl)
+		if isOccupied(move, *h.board) {
 			fmt.Println("Field is already occupied!")
 			continue
 		}
-		occupyField(move, board)
-		return
+		occupyField(move, h.board)
+		fmt.Printf("Player occupies field %d\n", move)
+		return move
 	}
 }
 
-func (HumanPlayer) printMove(move uint) {
-	fmt.Printf("Player occupies field %d\n", move)
+func (HumanPlayer) isHuman() bool {
+	return true
 }
 
-func (ComputerPlayer) printMove(move uint) {
-	fmt.Printf("Computer occupies field %d\n", move)
-}
-
-func nextMove(player Player, board *uint) int {
-	move := player.move(board)
-	if move == quit {
-		return quit
-	}
-	player.printMove(move)
-	return checkGameStatus(*board, player)
+func (ComputerPlayer) isHuman() bool {
+	return false
 }
 
 func printBoard(board uint) {
