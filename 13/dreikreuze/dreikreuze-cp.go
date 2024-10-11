@@ -7,28 +7,31 @@ import (
 	"time"
 )
 
+type GameStatus int
+
 const (
-	boardWidth = iota + 23
-	running
+	running GameStatus = iota
 	quit
 	playerWins
 	computerWins
 )
 
 type Player interface {
-	move() uint
+	move(board *Board) GameStatus
 	isHuman() bool
 }
 
 type ComputerPlayer struct {
-	name  string
-	board *uint
+	name string
 }
 
 type HumanPlayer struct {
-	name  string
-	board *uint
+	name string
 }
+
+const boardWidth = 23
+
+type Board uint
 
 func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -37,34 +40,39 @@ func main() {
 
 func startGame() {
 	intro()
-	var board uint
-	hplayer := HumanPlayer{name: "RUDI", board: &board}
-	cplayer := ComputerPlayer{name: "PETER", board: &board}
-	var currentPlayer, nextPlayer Player
+	var board Board
+	hplayer := HumanPlayer{name: "RUDI"}
+	cplayer := ComputerPlayer{name: "PETER"}
+	var nextPlayer Player
 
 	var start string
 	fmt.Print("Do you want to start? (y/n): ")
 	fmt.Scanf("%s", &start)
 	if strings.ToLower(start) == "y" {
-		currentPlayer = &cplayer
-		nextPlayer = &hplayer
-	} else {
-		currentPlayer = &hplayer
 		nextPlayer = &cplayer
+	} else {
+		nextPlayer = &hplayer
 	}
 
 	gameStatus := running
 	printBoard(board)
 	for gameStatus == running {
-		currentPlayer, nextPlayer = nextPlayer, currentPlayer
-		move := currentPlayer.move()
+		nextPlayer = getNextPlayer(nextPlayer, &hplayer, &cplayer)
+		move := nextPlayer.move(&board)
 		if move == quit {
 			break
 		}
 		printBoard(board)
-		gameStatus = checkGameStatus(board, currentPlayer)
+		gameStatus = checkGameStatus(board, nextPlayer)
 	}
 	printGameResult(gameStatus)
+}
+func getNextPlayer(currentPlayer, hplayer, cplayer Player) Player {
+	if currentPlayer == hplayer {
+		return cplayer
+	} else {
+		return hplayer
+	}
 }
 
 func intro() {
@@ -73,7 +81,7 @@ func intro() {
 	fmt.Println("If three or more X's are adjacent, the player wins.")
 }
 
-func printGameResult(gameStatus int) {
+func printGameResult(gameStatus GameStatus) {
 	switch gameStatus {
 	case quit:
 		fmt.Println("Player quits game")
@@ -84,20 +92,20 @@ func printGameResult(gameStatus int) {
 	}
 }
 
-func occupyField(pos uint, board *uint) {
+func (b *Board) occupy(pos uint) {
 	bit := uint(1) << pos
-	*board |= bit
+	*b |= Board(bit)
 }
 
-func isOccupied(pos uint, board uint) bool {
+func (b Board) isOccupied(pos uint) bool {
 	bit := uint(1) << pos
-	return (bit & board) == bit
+	return (bit & uint(b)) == bit
 }
 
-func checkGameStatus(board uint, currentPlayer Player) int {
+func checkGameStatus(b Board, currentPlayer Player) GameStatus {
 	crosses := 0
 	for i := 0; i < boardWidth; i++ {
-		if isOccupied(uint(i), board) {
+		if b.isOccupied(uint(i)) {
 			crosses++
 			if crosses == 3 {
 				if currentPlayer.isHuman() {
@@ -112,18 +120,18 @@ func checkGameStatus(board uint, currentPlayer Player) int {
 	return running
 }
 
-func (c *ComputerPlayer) move() uint {
+func (c *ComputerPlayer) move(board *Board) GameStatus {
 	for {
 		move := uint(rand.Intn(int(boardWidth)))
-		if !isOccupied(move, *c.board) {
-			occupyField(move, c.board)
+		if !board.isOccupied(move) {
+			board.occupy(move)
 			fmt.Printf("Computer occupies field %d\n", move)
-			return move
+			return running
 		}
 	}
 }
 
-func (h *HumanPlayer) move() uint {
+func (h *HumanPlayer) move(board *Board) GameStatus {
 	var input_pl int
 	for {
 		fmt.Print("Your move: ")
@@ -136,13 +144,13 @@ func (h *HumanPlayer) move() uint {
 			continue
 		}
 		move := uint(input_pl)
-		if isOccupied(move, *h.board) {
+		if board.isOccupied(move) {
 			fmt.Println("Field is already occupied!")
 			continue
 		}
-		occupyField(move, h.board)
+		board.occupy(move)
 		fmt.Printf("Player occupies field %d\n", move)
-		return move
+		return running
 	}
 }
 
@@ -154,9 +162,9 @@ func (ComputerPlayer) isHuman() bool {
 	return false
 }
 
-func printBoard(board uint) {
+func printBoard(board Board) {
 	for i := 0; i < boardWidth; i++ {
-		if isOccupied(uint(i), board) {
+		if board.isOccupied(uint(i)) {
 			fmt.Print("\\/ ")
 		} else {
 			fmt.Print("   ")
@@ -164,7 +172,7 @@ func printBoard(board uint) {
 	}
 	fmt.Println()
 	for i := 0; i < boardWidth; i++ {
-		if isOccupied(uint(i), board) {
+		if board.isOccupied(uint(i)) {
 			fmt.Print("/\\ ")
 		} else {
 			fmt.Print("   ")
