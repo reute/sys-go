@@ -1,77 +1,105 @@
 package main
 
 import (
-	"./convert"
 	"flag"
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
-	"math"
 	"math/cmplx"
 	"os"
 )
 
-func (m Image) ShowImage(s string) {
-	toimg, _ := os.Create("./" + s + ".png") //Create the file to which we will save the image
-	png.Encode(toimg, m)                     //Encode the image as a png
-}
-
-type Image struct{ Width, Height int } //Implement the image.Image interface
-
-func (m Image) Mandelbrot(x, y int) (int, int, int) {
-	x0 := float64(x)/float64(m.Width)*(rMax-rMin) + rMin  //Scale the pixel grid to the bounds of the Mandelbrot function
-	y0 := float64(y)/float64(m.Height)*(iMax-iMin) + iMin //Likewise for y axis
-	a := complex(float64(x0), float64(y0))                //Use complex number x+yi
-	z := complex(0, 0)                                    //Initial seed value: 0+0i
-	i := 0
-	for ; cmplx.Abs(z) < 2 && i < iterations; i++ { //Continue until the absolute value passes 2 (indicating that the number diverges)
-		z = z*z + a
-	}
-	if i == iterations {
-		return 0, 0, 0
-	}
-	return convert.HSVtoRGB(int(math.Abs(float64(i)*360.)/float64(iterations)), 100, 100) //Color the area with hue related to "closeness" to the set, ie numbers the diverge slower have higher hue
-}
-
-func (m Image) Bounds() image.Rectangle {
-	return image.Rect(0, 0, int(m.Width), int(m.Height)) //Define the bounds of the image
-}
-
-func (m Image) ColorModel() color.Model {
-	return color.RGBAModel //Use the RGBA color model (package image/color does not have native support for HSV)
-}
-
-func (m Image) At(x, y int) color.Color {
-	r, b, g := m.Mandelbrot(x, y)
-	return color.RGBA{uint8(r), uint8(b), uint8(g), 255} //Convert the int from the set to unit8 (as image.At() wants to return this type)
-}
-
-var (
-	rMin       = -2.5 //Bounds of the complex plane
-	rMax       = 1.
-	iMin       = -1.
-	iMax       = 1.
-	width      int
-	height     int
-	name       string
-	iterations int
-)
-
-func init() {
-
-	flag.StringVar(&name, "name", "", "Name of the image")
-	flag.IntVar(&width, "size", 1000, "Width of the image")
-	flag.IntVar(&iterations, "iterations", 20, "Number of iterations")
-	flag.Parse()
+type Params struct {
+	width, height, maxIter int
 }
 
 func main() {
-	height = int(float64(width) * (iMax - iMin) / (rMax - rMin))
-	m := Image{width, height}
-	if name == "" {
-		fmt.Println("Please give the image a name!")
-		return
+	width := flag.Int("w", 800, "width of the image")
+	height := flag.Int("h", 800, "height of the image")
+	maxIter := flag.Int("i", 1000, "maximum number of iterations")
+	flag.Parse()
+
+	params := Params{*width, *height, *maxIter}
+	img := GenerateMandelbrot(params)
+	SaveImage(img, "mandelbrot.png")
+}
+
+func GenerateMandelbrot(p Params) *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, p.width, p.height))
+
+	xMin, xMax := -2.5, 1.5
+	yMin, yMax := -1.5, 1.5
+
+	for x := 0; x < p.width; x++ {
+		for y := 0; y < p.height; y++ {
+			cx := xMin + (xMax-xMin)*float64(x)/float64(p.width)
+			cy := yMin + (yMax-yMin)*float64(y)/float64(p.height)
+			c := complex(cx, cy)
+			color := Mandelbrot(c, p.maxIter)
+			img.Set(x, y, color)
+		}
 	}
-	m.ShowImage(name) //Compute and save the file to the first argument
+
+	return img
+}
+
+func Mandelbrot(c complex128, maxIter int) color.RGBA {
+	z := complex(0, 0)
+	var n int
+	for ; n < maxIter; n++ {
+		if cmplx.Abs(z) > 2 {
+			break
+		}
+		z = z*z + c
+	}
+
+	if n == maxIter {
+		return color.RGBA{0, 0, 0, 255} // Points in the Mandelbrot set are colored black
+	}
+
+	// Color gradient based on the number of iterations
+	hue := uint8(255 * n / maxIter)
+	saturation := uint8(255)
+	value := uint8(255 - 255*float64(n)/float64(maxIter))
+
+	r, g, b := hsvToRgb(hue, saturation, value)
+	return color.RGBA{r, g, b, 255}
+}
+
+func hsvToRgb(h, s, v uint8) (r, g, b uint8) {
+	hh := float64(h) / 256.0 * 6.0
+	sv := float64(s) / 255.0
+	vv := float64(v) / 255.0
+
+	ii := int(hh)
+	ff := hh - float64(ii)
+	p := vv * (1.0 - sv)
+	q := vv * (1.0 - sv*ff)
+	t := vv * (1.0 - sv*(1.0-ff))
+
+	switch ii {
+	case 0:
+		r, g, b = uint8(vv*255), uint8(t*255), uint8(p*255)
+	case 1:
+		r, g, b = uint8(q*255), uint8(vv*255), uint8(p*255)
+	case 2:
+		r, g, b = uint8(p*255), uint8(vv*255), uint8(t*255)
+	case 3:
+		r, g, b = uint8(p*255), uint8(q*255), uint8(vv*255)
+	case 4:
+		r, g, b = uint8(t*255), uint8(p*255), uint8(vv*255)
+	default:
+		r, g, b = uint8(vv*255), uint8(p*255), uint8(q*255)
+	}
+
+	return
+}
+
+func SaveImage(img *image.RGBA, filename string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	png.Encode(file, img)
 }

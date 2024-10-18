@@ -3,36 +3,47 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"sort"
 	"strings"
 )
 
 const (
-	running = iota
+	begin = iota
+	end
+	nofit
+	running
 	noCandidatesLeft
 	noCitiesLeft
-	begin
-	end
 )
+const filename = "cities.txt"
+
+type Node struct {
+	city string
+	next *Node
+}
 
 func main() {
-	const filename = "cities.txt"
-	cities := readFromFile(filename)
-	var chain []string
-	gameStatus := checkGameStatus(chain, cities)
+	unsorted, err := readFromFile(filename)
+	if err != nil {
+		log.Fatalf("Error reading file: %v", err)
+	}
+	var sorted *Node = nil
+	gameStatus := checkGameStatus(unsorted, sorted)
 	for gameStatus == running {
-		fmt.Printf("%d Words left\n", len(cities))
-		inputCity := strings.TrimRight(getInputCity(), "\n")
+		fmt.Printf("%d Words left\n", unsorted.len())
+		inputCity := getInputCity()
 		if inputCity == "" {
-			printHintList(findCandidates(chain, cities))
+			printHintList(findCandidates(unsorted, sorted))
 		} else {
-			found, cityPos := searchCity(inputCity, cities)
-			if found {
-				fits, chainPos := checkChain(cities[cityPos], chain)
-				if fits {
-					move(&chain, &cities, cityPos, chainPos)
-					printChain(chain)
-					gameStatus = checkGameStatus(chain, cities)
+			cityNode := searchCity(inputCity, unsorted)
+			if cityNode != nil {
+				position := checkFit(inputCity, sorted)
+				if position != nofit {
+					insertIntoSorted(&unsorted, &sorted, inputCity, position)
+					sorted.print()
+					gameStatus = checkGameStatus(unsorted, sorted)
 				} else {
 					fmt.Println("Word doesn't fit")
 				}
@@ -43,90 +54,140 @@ func main() {
 	}
 	switch gameStatus {
 	case noCandidatesLeft:
-		fmt.Printf("No further candidates available, ending. %d words in Chain", len(chain))
+		fmt.Printf("No further candidates available, ending. %d words in Chain", sorted.len())
 	case noCitiesLeft:
-		fmt.Printf("No further cities available, ending. %d words in Chain", len(chain))
+		fmt.Printf("No further cities available, ending. %d words in Chain", sorted.len())
 	}
 }
 
-func move(chain, cities *[]string, cityPos, chainPos int) {
-	if chainPos == begin {
-		fmt.Println("begin")
-		*chain = append(*chain, "")
-		copy((*chain)[1:], (*chain)[:])
-		(*chain)[0] = (*cities)[cityPos]
-	} else if chainPos == end {
-		fmt.Println("end")
-		*chain = append(*chain, (*cities)[cityPos])
+func insertIntoSorted(unsorted **Node, sorted **Node, city string, position int) {
+	// Find the node in the unsorted list
+	var prev *Node
+	curr := *unsorted
+	for curr != nil && curr.city != city {
+		prev = curr
+		curr = curr.next
 	}
-	*cities = append((*cities)[:cityPos], (*cities)[cityPos+1:]...)
+	// If the node is not found, return
+	if curr == nil {
+		fmt.Println("City not found in the unsorted list")
+		return
+	}
+	// Remove the node from the unsorted list
+	if prev == nil {
+		*unsorted = curr.next
+	} else {
+		prev.next = curr.next
+	}
+	// Insert the node into the sorted list
+	if *sorted == nil || position == begin {
+		// Insert at the beginning
+		curr.next = *sorted
+		*sorted = curr
+	} else {
+		// Insert at the end
+		sortedCurr := *sorted
+		for sortedCurr.next != nil {
+			sortedCurr = sortedCurr.next
+		}
+		sortedCurr.next = curr
+		curr.next = nil
+	}
 }
 
-func checkChain(city string, chain []string) (bool, int) {
-	if len(chain) == 0 {
-		return true, begin
+func checkFit(city string, sorted *Node) int {
+	if sorted == nil {
+		return begin
 	}
-	if fitsBegin(city, chain[0]) {
-		return true, begin
+	if fitsFirstChar(city, sorted.city) {
+		return begin
 	}
-	if fitsEnd(city, chain[len(chain)-1]) {
-		return true, end
+	if fitsLastChar(city, sorted.getLastNode().city) {
+		return end
 	}
-	return false, 0
+	return nofit
 }
 
-func fitsBegin(city, firstCityInChain string) bool {
-	city = strings.ToUpper(city)
-	cityLastChar := string(city[len(city)-1])
-	return strings.HasPrefix(firstCityInChain, cityLastChar)
+func fitsFirstChar(cityNew, citySorted string) bool {
+	return strings.EqualFold(string(cityNew[len(cityNew)-1]), string(citySorted[0]))
 }
 
-func fitsEnd(city, lastCityInChain string) bool {
-	lastCityInChain = strings.ToUpper(lastCityInChain)
-	city = strings.ToUpper(city)
-	cityFirstChar := string((city)[0])
-	return strings.HasSuffix(lastCityInChain, cityFirstChar)
+func fitsLastChar(cityNew, citySorted string) bool {
+	return strings.EqualFold(string(cityNew[0]), string(citySorted[len(citySorted)-1]))
 }
 
-func readFromFile(filename string) (cities []string) {
-	file, _ := os.Open(filename)
+func readFromFile(filename string) (unsorted *Node, err error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
-	{
-		var city string
-		for i := 0; scanner.Scan(); i++ {
-			city = scanner.Text()
-			cities = append(cities, city)
+	var lastNode *Node
+	for scanner.Scan() {
+		cityNode := &Node{
+			city: scanner.Text(),
 		}
+		if unsorted == nil {
+			unsorted = cityNode
+		} else {
+			lastNode.next = cityNode
+		}
+		lastNode = cityNode
 	}
 	return
 }
 
-func findCandidates(chain, cities []string) []string {
-	if len(chain) == 0 || len(cities) == 0 {
-		return cities
+func findCandidates(unsorted *Node, sorted *Node) (candidates []string) {
+	if unsorted == nil {
+		return
 	}
-	candidates := []string{}
-	firstCityInChain := chain[0]
-	lastCityInChain := chain[len(chain)-1]
-	for _, city := range cities {
-		if fitsBegin(city, firstCityInChain) {
-			candidates = append(candidates, city)
-		} else if fitsEnd(city, lastCityInChain) {
+	current := unsorted
+	for current != nil {
+		city := current.city
+		position := checkFit(city, sorted)
+		if position != nofit {
 			candidates = append(candidates, city)
 		}
+		current = current.next
 	}
-	return candidates
+	return
 }
 
-func checkGameStatus(chain, cities []string) int {
-	if len(cities) == 0 {
+func (list *Node) getLastNode() *Node {
+	if list == nil {
+		return list
+	}
+	current := list
+	for current.next != nil {
+		current = current.next
+	}
+	return current
+}
+
+func (list *Node) len() int {
+	length := 0
+	for current := list; current != nil; current = current.next {
+		length++
+	}
+	return length
+}
+
+func (list *Node) print() {
+	fmt.Print(list.city)
+	fmt.Print(" ... ")
+	fmt.Print(list.getLastNode().city)
+	fmt.Println()
+}
+
+func checkGameStatus(unsorted, sorted *Node) int {
+	if unsorted.len() == 0 {
 		return noCitiesLeft
 	}
-	if len(chain) == 0 {
+	if sorted.len() == 0 {
 		return running
 	}
-	candidates := findCandidates(chain, cities)
+	candidates := findCandidates(unsorted, sorted)
 	if len(candidates) != 0 {
 		return running
 	} else {
@@ -143,26 +204,28 @@ func getInputCity() (inputCity string) {
 }
 
 func printHintList(candidates []string) {
-	for _, city := range candidates {
-		fmt.Printf("%s, ", city)
+	if len(candidates) == 0 {
+		fmt.Println("No candidates available.")
+		return
+	}
+	sort.Strings(candidates)
+	fmt.Println("Available candidates:")
+	for i, city := range candidates {
+		if i > 0 && i%5 == 0 {
+			fmt.Println()
+		}
+		fmt.Printf("%-20s", city)
 	}
 	fmt.Println()
 }
 
-func searchCity(inputCity string, cities []string) (bool, int) {
-	for i, city := range cities {
-		if city == inputCity {
-			return true, i
+func searchCity(inputCity string, unsorted *Node) *Node {
+	current := unsorted
+	for current != nil {
+		if strings.EqualFold(inputCity, current.city) {
+			return current
 		}
+		current = current.next
 	}
-	return false, 0
-}
-
-func printChain(chain []string) {
-	if len(chain) != 0 {
-		fmt.Print(chain[0])
-		fmt.Print(" ... ")
-		fmt.Print(chain[len(chain)-1])
-		fmt.Println()
-	}
+	return nil
 }

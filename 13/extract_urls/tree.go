@@ -4,11 +4,6 @@
 
 package main // import "golang.org/x/tour/tree"
 
-import (
-	
-	"math/rand"
-)
-
 // A Tree is a binary tree with integer values.
 type Tree struct {
 	Left  *Tree
@@ -56,7 +51,6 @@ func Compare(t1, t2 *Tree) bool {
 	return false
 }
 
-
 func insert(t *Tree, v int) *Tree {
 	if t == nil {
 		return &Tree{nil, v, nil}
@@ -68,3 +62,4 @@ func insert(t *Tree, v int) *Tree {
 	t.Right = insert(t.Right, v)
 	return t
 }
+

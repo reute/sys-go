@@ -1,77 +1,127 @@
 package main
 
 import (
-    "os"
-    "io/ioutil"
+	"bufio"
 	"fmt"
-    "strings"
-    "math"
+	"io"
+	"math"
+	"os"
+	"strings"
 )
 
-func main() {    
-    var filename, chars1, chars2 string
-    if len(os.Args) > 3 {        
-        chars1 = os.Args[1]
-        chars2 = os.Args[2]
-        filename = os.Args[3]
-    }
-    text := readFile(filename) 
-    fmt.Println(chars1)    
-    fmt.Println(chars2) 
-    fmt.Println(text)  
-    chars1 = expandRange(chars1)
-    chars2 = expandRange(chars2)
-    fmt.Println("chars1", chars1)
-    fmt.Println("chars2", chars2)
-    newCharset := createNewCharset([]byte(chars1), []byte(chars2))
-    fmt.Println("newcharset:", newCharset)
-    newText := replaceChars(text, newCharset)
-    writeFile(filename, newText)
+const MaxCharsetSize = math.MaxInt8
+
+func main() {
+	if len(os.Args) < 4 {
+		fmt.Println("Usage: <chars1> <chars2> <filename>")
+		return
+	}
+	search := os.Args[1]
+	replace := os.Args[2]
+	filename := os.Args[3]
+
+	search = expandRange(search)
+	replace = expandRange(replace)
+	if len(search) != len(replace) {
+		fmt.Println("Error: search and replace chars must have the same length")
+		return
+	}
+
+	newCharset := createNewCharset([]byte(search), []byte(replace))
+	err := processFile(filename, newCharset)
+	if err != nil {
+		fmt.Println("Error processing file:", err)
+		return
+	}
 }
 
 func expandRange(chars string) string {
-    expChars := make([]byte, 0, math.MaxInt8)
-    var from, to byte
-    for i := 0; i < len(chars); i++ {        
-        if chars[i] == '-' {
-            from = chars[i-1]
-            to = chars[i+1]
-            // fmt.Println("from", from)
-            // fmt.Println("to", to)               
-            for i := from+1; i <= to; i++ {
-                expChars = append(expChars, i)                
-            }
-            i++
-        } else {
-            expChars = append(expChars, chars[i])
-        }        
-    }
-    return string(expChars)
+	var builder strings.Builder
+	for i := 0; i < len(chars); i++ {
+		if chars[i] == '-' && i > 0 && i < len(chars)-1 {
+			from := chars[i-1]
+			to := chars[i+1]
+			for j := from + 1; j <= to; j++ {
+				builder.WriteByte(j)
+			}
+			i++
+		} else {
+			builder.WriteByte(chars[i])
+		}
+	}
+	return builder.String()
 }
 
-func createNewCharset(chars1, chars2 []byte) (newCharset [math.MaxInt8]byte) {
-    for indexChars1, val := range chars1 {       
-        newCharset[val] = chars2[indexChars1]
-    }
-    return 
+func createNewCharset(search, replace []byte) (newCharset [MaxCharsetSize]byte) {
+	for index, codepoint := range search {
+		newCharset[codepoint] = replace[index]
+	}
+	return
 }
 
-func replaceChars(text string, newCharset [math.MaxInt8]byte) (newText []byte) {
-    newText = []byte(text)
-    for indexContent, val := range text {       
-      	if  newCharset[val] != 0 {
-            newText[indexContent] = newCharset[val]
-        }	
-    }
-    return 
+func processFile(filename string, newCharset [MaxCharsetSize]byte) error {
+	input, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+
+	output, err := os.CreateTemp("", "tr-cp-*")
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	reader := bufio.NewReader(input)
+	writer := bufio.NewWriter(output)
+
+	for {
+		char, _, err := reader.ReadRune()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if newChar := newCharset[char]; newChar != 0 {
+			_, err = writer.WriteRune(rune(newChar))
+		} else {
+			_, err = writer.WriteRune(char)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+
+	if err := os.Rename(output.Name(), filename); err != nil {
+		return copyFileContents(output.Name(), filename)
+	}
+
+	return nil
 }
 
-func readFile(filename string) string {
-    tmp, _ := ioutil.ReadFile(filename)    
-    content := strings.TrimRight(string(tmp), "\n") 
-    return string(content)
-}
+// Helper function to copy file contents
+func copyFileContents(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
 
-func writeFile(filename string, content []byte) error {
-    return ioutil.WriteFile(filename, content, 0644)
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+	return out.Sync()
 }

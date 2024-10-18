@@ -7,19 +7,22 @@ import (
 	"strings"
 )
 
-const clear = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
-const defaultWalze = "EKLMF6GDQVZ0TO8Y XUSP2IB4CJ5AR197W3NH"
-const sizeWalze = len(clear)
-
-type enigma struct {
-	text, walze string
-}
+// Use constants for magic numbers and strings
+const (
+	clear        = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
+	defaultWalze = "EKLMF6GDQVZ0TO8Y XUSP2IB4CJ5AR197W3NH"
+	sizeWalze    = len(clear)
+)
 
 const (
 	modeEncrypt = iota
 	modeDecrypt
 	modeCrack
 )
+
+type enigma struct {
+	text, walze string
+}
 
 func main() {
 	fmt.Println("*** ENIGMA ***")
@@ -105,10 +108,10 @@ func getWalze() (walze string) {
 	fmt.Printf("Bitte Walzenstellung eingeben (0 - %d): ", sizeWalze)
 	for {
 		fmt.Scanf("%d", &walzenstellung)
-		if walzenstellung < 0 || walzenstellung > 37 {
-			fmt.Printf("Bitte Wert zwischen 0 und %d eingeben: ", sizeWalze)
+		if walzenstellung >= 0 || walzenstellung <= sizeWalze {
+			break
 		}
-		break
+		fmt.Printf("Bitte Wert zwischen 0 und %d eingeben: ", sizeWalze)
 	}
 	for i := 0; i < walzenstellung; i++ {
 		walze = walze[1:] + walze[:1]
@@ -120,11 +123,9 @@ func inputMode() (mode int) {
 	fmt.Println("0 - Verschlüsseln\n1 - Entschlüsseln\n2 - Text Knacken")
 	for {
 		fmt.Scanf("%d", &mode)
-		if mode < 0 || mode > 2 {
-			fmt.Print("Bitte Wert zwischen 0 und 2 eingeben")
-			continue
+		if mode != modeDecrypt && mode != modeEncrypt && mode != modeCrack {
+			return
 		}
-		return
+		fmt.Println("Gültige Werte: \n0 - Verschlüsseln\n1 - Entschlüsseln\n2 - Text Knacken")
 	}
 }
-
