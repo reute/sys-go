@@ -14,9 +14,11 @@ const (
 const (
 	NUM_DICES       = 3
 	INITIAL_BALANCE = 100
+	MIN_DICE_NUMBER = 1
+	MAX_DICE_NUMBER = 6
 )
 
-type t_dices [NUM_DICES]int
+type t_dicesValues [NUM_DICES]int
 
 type Player struct {
 	balance int
@@ -49,12 +51,10 @@ func startGame(player *Player) {
 	initialBalance := player.balance
 	status := ONGOING
 	for status == ONGOING {
-		status = newRound(player)
+		status = playRound(player)
 		roundsPlayed++
 	}
-	if status == END {
-		fmt.Println("Game over. Thanks for playing!")
-	} else if status == BROKE {
+	if status == BROKE {
 		fmt.Println("You're broke. Game over!")
 	} else {
 		displayGameSummary(player, roundsPlayed, initialBalance)
@@ -70,12 +70,11 @@ func displayRules() {
 4. You win your bet for each die matching your guess.
 5. If no dice match, you lose your bet.
 6. The game ends when you're broke or choose to quit.
-****************************************************
-`
+****************************************************`
 	fmt.Println(rules)
 }
 
-func newRound(player *Player) int {
+func playRound(player *Player) int {
 	fmt.Printf("You have %d units\n", player.balance)
 	bet := inputBet(player.balance)
 	if bet == 0 {
@@ -84,8 +83,8 @@ func newRound(player *Player) int {
 	guess := inputGuess()
 	dices := rollDices()
 	result := calcResult(bet, guess, dices)
-	updateBalance(player, result)
-	if player.balance <= 0 {
+	player.balance += result
+	if player.balance == 0 {
 		return BROKE
 	}
 	return ONGOING
@@ -96,7 +95,7 @@ func inputBet(balance int) (bet int) {
 		fmt.Print("Your bet: ")
 		_, err := fmt.Scanf("%d", &bet)
 		if err != nil || bet < 0 || bet > balance {
-			fmt.Println("Invalid bet. Please enter a positive number within your balance.")
+			fmt.Printf("Invalid bet. Please enter a positive number not bigger than %d\n", balance)
 			continue
 		}
 		return
@@ -105,24 +104,24 @@ func inputBet(balance int) (bet int) {
 
 func inputGuess() (guess int) {
 	for {
-		fmt.Print("Your guess (1-6): ")
+		fmt.Printf("Your guess (%d-%d): ", MIN_DICE_NUMBER, MAX_DICE_NUMBER)
 		_, err := fmt.Scanf("%d", &guess)
-		if err != nil || guess < 1 || guess > 6 {
-			fmt.Println("Invalid input. Please enter a number between 1 and 6.")
+		if err != nil || guess < MIN_DICE_NUMBER || guess > MAX_DICE_NUMBER {
+			fmt.Printf("Invalid input. Please enter a number between %d and %d\n", MIN_DICE_NUMBER, MAX_DICE_NUMBER)
 			continue
 		}
 		return
 	}
 }
 
-func rollDices() (dices t_dices) {
+func rollDices() (dices t_dicesValues) {
 	for i := range dices {
-		dices[i] = rand.Intn(6) + 1
+		dices[i] = rand.Intn(MAX_DICE_NUMBER) + MIN_DICE_NUMBER
 	}
 	return
 }
 
-func calcResult(bet, guess int, dices t_dices) int {
+func calcResult(bet, guess int, dices t_dicesValues) int {
 	fmt.Print("The dice rolled: ")
 	matches := 0
 	for _, dice := range dices {
@@ -135,16 +134,13 @@ func calcResult(bet, guess int, dices t_dices) int {
 	if matches == 0 {
 		return -bet
 	}
-	return bet * matches
-}
-
-func updateBalance(player *Player, result int) {
-	player.balance += result
+	result := bet * matches
 	if result <= 0 {
 		fmt.Printf("Bad luck, no matches! You lose %d units\n", -result)
 	} else {
 		fmt.Printf("Congratulations, you win %d units!\n", result)
 	}
+	return result
 }
 
 func displayGameSummary(player *Player, roundsPlayed int, initialBalance int) {
