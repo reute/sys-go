@@ -12,24 +12,19 @@ type GameStatus int
 const (
 	running GameStatus = iota
 	quit
-	playerWins
+	humanWins
 	computerWins
 )
 
 const boardWidth = 23
 
 type Player interface {
-	makeMove() GameStatus
-	isHuman() bool
+	makeMove(*uint) GameStatus
 }
 
-type ComputerPlayer struct {
-	board *uint
-}
+type ComputerPlayer struct{}
 
-type HumanPlayer struct {
-	board *uint
-}
+type HumanPlayer struct{}
 
 func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -46,14 +41,14 @@ func intro() {
 func startGame() {
 	var board uint
 	var currentPlayer, nextPlayer Player
-	currentPlayer = &ComputerPlayer{board: &board}
-	nextPlayer = &HumanPlayer{board: &board}
+	currentPlayer = ComputerPlayer{}
+	nextPlayer = HumanPlayer{}
 
 	gameStatus := running
 	for gameStatus == running {
 		printBoard(board)
 		currentPlayer, nextPlayer = nextPlayer, currentPlayer
-		gameStatus = currentPlayer.makeMove()
+		gameStatus = currentPlayer.makeMove(&board)
 		if gameStatus == quit {
 			break
 		}
@@ -85,18 +80,18 @@ func printBoard(board uint) {
 	fmt.Println()
 }
 
-func (c *ComputerPlayer) makeMove() GameStatus {
+func (c ComputerPlayer) makeMove(board *uint) GameStatus {
 	for {
 		move := uint(rand.Intn(int(boardWidth)))
-		if !isOccupied(move, *c.board) {
-			occupy(move, c.board)
+		if !isOccupied(move, *board) {
+			occupy(move, board)
 			fmt.Printf("Computer occupies field %d\n", move)
 			return running
 		}
 	}
 }
 
-func (h *HumanPlayer) makeMove() GameStatus {
+func (h HumanPlayer) makeMove(board *uint) GameStatus {
 	for {
 		fmt.Print("Enter your move (0-22) or 'q' to quit: ")
 		var input string
@@ -105,8 +100,8 @@ func (h *HumanPlayer) makeMove() GameStatus {
 			return quit
 		}
 		move, err := strconv.ParseUint(input, 10, 32)
-		if err == nil && move < boardWidth && !isOccupied(uint(move), *h.board) {
-			occupy(uint(move), h.board)
+		if err == nil && move < boardWidth && !isOccupied(uint(move), *board) {
+			occupy(uint(move), board)
 			return running
 		}
 		fmt.Println("Invalid move. Try again.")
@@ -119,8 +114,8 @@ func checkGameStatus(board uint, currentPlayer Player) GameStatus {
 		if isOccupied(uint(i), board) {
 			crosses++
 			if crosses == 3 {
-				if currentPlayer.isHuman() {
-					return playerWins
+				if _, ok := currentPlayer.(HumanPlayer); ok {
+					return humanWins
 				}
 				return computerWins
 			}
@@ -130,11 +125,12 @@ func checkGameStatus(board uint, currentPlayer Player) GameStatus {
 	}
 	return running
 }
+
 func printGameResult(gameStatus GameStatus) {
 	switch gameStatus {
 	case quit:
 		fmt.Println("Player quits game")
-	case playerWins:
+	case humanWins:
 		fmt.Println("Player wins!")
 	case computerWins:
 		fmt.Println("Computer wins!")
@@ -149,12 +145,4 @@ func occupy(pos uint, board *uint) {
 func isOccupied(pos uint, board uint) bool {
 	bit := uint(1) << pos
 	return (bit & uint(board)) == bit
-}
-
-func (HumanPlayer) isHuman() bool {
-	return true
-}
-
-func (ComputerPlayer) isHuman() bool {
-	return false
 }
