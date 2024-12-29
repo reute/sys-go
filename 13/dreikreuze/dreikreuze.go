@@ -102,6 +102,7 @@ func (h HumanPlayer) makeMove(board *uint) GameStatus {
 		move, err := strconv.ParseUint(input, 10, 32)
 		if err == nil && move < boardWidth && !isOccupied(uint(move), *board) {
 			occupy(uint(move), board)
+			fmt.Printf("Player occupies field %d\n", move)
 			return running
 		}
 		fmt.Println("Invalid move. Try again.")

@@ -22,27 +22,6 @@ func main() {
 	printList()
 }
 
-func scanDir(path string) {
-	items, err := os.ReadDir(path)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading directory: %v\n", err)
-		return
-	}
-	for _, item := range items {
-		itemName := item.Name()
-		if item.IsDir() {
-			scanDir(filepath.Join(path, itemName))
-		} else {
-			itemInfo, err := item.Info()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error getting file info: %v\n", err)
-				continue
-			}
-			addFile(file{itemInfo.Size(), itemName, path})
-		}
-	}
-}
-
 func getDirName() string {
 	if len(os.Args) > 1 {
 		return os.Args[1]
@@ -50,10 +29,25 @@ func getDirName() string {
 	return "."
 }
 
-func printList() {
-	fmt.Println("Result:")
-	for _, f := range fileList {
-		fmt.Printf("%s (%d kbytes)\n", filepath.Join(f.path, f.name), f.size/1024)
+func scanDir(path string) {
+	dirEntries, err := os.ReadDir(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading directory: %v\n", err)
+		return
+	}
+	for _, dirEntry := range dirEntries {
+		name := dirEntry.Name()
+		if dirEntry.IsDir() {
+			scanDir(filepath.Join(path, name))
+		} else {
+			info, err := dirEntry.Info()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting file info: %v\n", err)
+				continue
+			}
+			size := info.Size()
+			addFile(file{size, name, path})
+		}
 	}
 }
 
@@ -64,5 +58,12 @@ func addFile(newFile file) {
 	})
 	if len(fileList) > MAX_FILES {
 		fileList = fileList[:MAX_FILES]
+	}
+}
+
+func printList() {
+	fmt.Println("Result:")
+	for _, f := range fileList {
+		fmt.Printf("%s (%d kbytes)\n", filepath.Join(f.path, f.name), f.size/1024)
 	}
 }
