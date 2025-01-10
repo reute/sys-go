@@ -17,14 +17,10 @@ const (
 	INPUT_PROMPT = "What is to be inserted where? "
 )
 
-type mountain struct {
+type mountainNode struct {
 	name   string
 	height int
-}
-
-type mountainNode struct {
-	data *mountain
-	next *mountainNode
+	next   *mountainNode
 }
 
 type mountainList struct {
@@ -32,11 +28,9 @@ type mountainList struct {
 }
 
 func main() {
-	unsortedMountains := readFile(NUM_MTNS)
-	unsorted := createLinkedList(unsortedMountains)
+	unsorted := readFile(NUM_MTNS)
 	sorted := &mountainList{}
 
-	// gameloop
 	for unsorted.head != nil {
 		fmt.Println("Sorted Mountains:")
 		sorted.printMountains()
@@ -44,9 +38,9 @@ func main() {
 		unsorted.printMountains()
 
 		number_unsorted, number_sorted := inputUser()
-		mountainToMove := unsorted.remove(number_unsorted)
-		if mountainToMove != nil {
-			sorted.insertAt(number_sorted, mountainToMove)
+		node := unsorted.remove(number_unsorted)
+		if node != nil {
+			sorted.insertAt(number_sorted, node)
 		}
 		if !sorted.isSorted() {
 			sorted.printMountainsWithHeight()
@@ -57,38 +51,28 @@ func main() {
 	fmt.Println(WIN_MESSAGE)
 }
 
-func readFile(num_mtns int) []mountain {
+func readFile(num_mtns int) *mountainList {
 	inFile, err := os.Open(FILENAME)
 	if err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
 		os.Exit(1)
 	}
 	defer inFile.Close()
-
-	mountains := make([]mountain, num_mtns)
+	list := &mountainList{}
 	scanner := bufio.NewScanner(inFile)
 	scanner.Split(bufio.ScanLines)
-
 	for i := 0; scanner.Scan(); i++ {
 		parts := strings.Split(scanner.Text(), ":")
 		name := parts[0]
 		height, _ := strconv.Atoi(parts[1])
 		if i < num_mtns {
-			mountains[i] = mountain{name, height}
+			list.append(&mountainNode{name, height, nil})
 		} else {
 			r := rand.Intn(i)
 			if r < num_mtns {
-				mountains[r] = mountain{name, height}
+				list.changeAt(r, name, height)
 			}
 		}
-	}
-	return mountains
-}
-
-func createLinkedList(mountains []mountain) *mountainList {
-	list := &mountainList{}
-	for i := range mountains {
-		list.append(&mountains[i])
 	}
 	return list
 }
@@ -117,7 +101,7 @@ func (list mountainList) isSorted() bool {
 	var tmp, highest int
 	current := list.head
 	for current != nil {
-		tmp = current.data.height
+		tmp = current.height
 		if tmp < highest {
 			return false
 		}
@@ -127,27 +111,26 @@ func (list mountainList) isSorted() bool {
 	return true
 }
 
-func (list *mountainList) append(m *mountain) {
-	newNode := &mountainNode{data: m}
+func (list *mountainList) append(node *mountainNode) {
 	if list.head == nil {
-		list.head = newNode
+		list.head = node
 	} else {
 		current := list.head
 		for current.next != nil {
 			current = current.next
 		}
-		current.next = newNode
+		current.next = node
 	}
 }
 
-func (list *mountainList) remove(index int) *mountain {
+func (list *mountainList) remove(index int) *mountainNode {
 	if list.head == nil {
 		return nil
 	}
 	if index == 0 {
 		removed := list.head
 		list.head = list.head.next
-		return removed.data
+		return removed
 	}
 	current := list.head
 	for i := 0; i < index-1 && current.next != nil; i++ {
@@ -158,28 +141,37 @@ func (list *mountainList) remove(index int) *mountain {
 	}
 	removed := current.next
 	current.next = current.next.next
-	return removed.data
+	return removed
 }
 
-func (list *mountainList) insertAt(index int, m *mountain) {
-	newNode := &mountainNode{data: m}
+func (list *mountainList) insertAt(index int, node *mountainNode) {
 	if index == 0 {
-		newNode.next = list.head
-		list.head = newNode
+		oldHead := list.head
+		list.head = node
+		node.next = oldHead
 		return
 	}
 	current := list.head
 	for i := 0; i < index-1 && current.next != nil; i++ {
 		current = current.next
 	}
-	newNode.next = current.next
-	current.next = newNode
+	node.next = current.next
+	current.next = node
+}
+
+func (list *mountainList) changeAt(index int, name string, height int) {
+	node := list.head
+	for i := 0; i < index-1 && node.next != nil; i++ {
+		node = node.next
+	}
+	node.name = name
+	node.height = height
 }
 
 func (list mountainList) printMountains() {
 	current := list.head
 	for i := 0; current != nil; i++ {
-		fmt.Printf(" %d: %s\n", i, current.data.name)
+		fmt.Printf(" %d: %s\n", i, current.name)
 		current = current.next
 	}
 }
@@ -187,7 +179,7 @@ func (list mountainList) printMountains() {
 func (list mountainList) printMountainsWithHeight() {
 	current := list.head
 	for i := 0; current != nil; i++ {
-		fmt.Printf(" %d: %s, Height: %d\n", i, current.data.name, current.data.height)
+		fmt.Printf(" %d: %s, Height: %d\n", i, current.name, current.height)
 		current = current.next
 	}
 }

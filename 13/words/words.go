@@ -28,8 +28,9 @@ func main() {
 	unsorted, err := readFromFile(filename)
 	if err != nil {
 		log.Fatalf("Error reading file: %v", err)
+		return
 	}
-	var sorted *Node = nil
+	var sorted *Node
 	gameStatus := checkGameStatus(unsorted, sorted)
 	for gameStatus == running {
 		fmt.Printf("%d Words left\n", unsorted.len())
