@@ -145,18 +145,19 @@ func (list *mountainList) remove(index int) *mountainNode {
 }
 
 func (list *mountainList) insertAt(index int, node *mountainNode) {
+	currentNode := list.head
 	if index == 0 {
-		oldHead := list.head
 		list.head = node
-		node.next = oldHead
+		node.next = currentNode
 		return
 	}
-	current := list.head
-	for i := 0; i < index-1 && current.next != nil; i++ {
-		current = current.next
+	if currentNode != nil {
+		for i := 0; i < index-1 && currentNode.next != nil; i++ {
+			currentNode = currentNode.next
+		}
 	}
-	node.next = current.next
-	current.next = node
+	node.next = currentNode.next
+	currentNode.next = node
 }
 
 func (list *mountainList) changeAt(index int, name string, height int) {
