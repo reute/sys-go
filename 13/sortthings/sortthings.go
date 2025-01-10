@@ -22,112 +22,172 @@ type mountain struct {
 	height int
 }
 
-type data struct {
-	unsorted []*mountain
-	sorted   []*mountain
+type mountainNode struct {
+	data *mountain
+	next *mountainNode
+}
+
+type mountainList struct {
+	head *mountainNode
 }
 
 func main() {
-	mountains := readFile()
-	game := newGame(mountains)
+	unsortedMountains := readFile(NUM_MTNS)
+	unsorted := createLinkedList(unsortedMountains)
+	sorted := &mountainList{}
 
 	// gameloop
-	for len(game.unsorted) > 0 {
+	for unsorted.head != nil {
 		fmt.Println("Sorted Mountains:")
-		printMountains(game.sorted)
-		fmt.Println("Still to be sorted:")
-		printMountains(game.unsorted)
+		sorted.printMountains()
+		fmt.Println("Unsorted Mountains:")
+		unsorted.printMountains()
 
-		from, to := inputUser()
-		game.move(from, to)
-
-		if !isSorted(game.sorted) {
-			break
+		number_unsorted, number_sorted := inputUser()
+		mountainToMove := unsorted.remove(number_unsorted)
+		if mountainToMove != nil {
+			sorted.insertAt(number_sorted, mountainToMove)
+		}
+		if !sorted.isSorted() {
+			sorted.printMountainsWithHeight()
+			fmt.Println(LOSE_MESSAGE)
+			return
 		}
 	}
-	if len(game.unsorted) == 0 {
-		fmt.Println("You have  won !!")
-	} else {
-		fmt.Println("Sorry, then it is no longer sorted:")
-	}
-	for _, element := range game.sorted {
-		fmt.Printf(" %5d: %s \n", element.height, element.name)
-	}
-	fmt.Println("Bye!")
-	fmt.Printf("You got %d Points.\n", len(game.sorted)-1)
+	fmt.Println(WIN_MESSAGE)
 }
 
-func readFile() (mountains [NUM_MTNS]mountain) {
+func readFile(num_mtns int) []mountain {
 	inFile, err := os.Open(FILENAME)
 	if err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
 		os.Exit(1)
 	}
 	defer inFile.Close()
+
+	mountains := make([]mountain, num_mtns)
 	scanner := bufio.NewScanner(inFile)
 	scanner.Split(bufio.ScanLines)
-	var tmp []string
-	var name string
-	var height, r int
+
 	for i := 0; scanner.Scan(); i++ {
-		tmp = strings.Split(scanner.Text(), ":")
-		name = tmp[0]
-		height, _ = strconv.Atoi(tmp[1])
-		if i < NUM_MTNS {
+		parts := strings.Split(scanner.Text(), ":")
+		name := parts[0]
+		height, _ := strconv.Atoi(parts[1])
+		if i < num_mtns {
 			mountains[i] = mountain{name, height}
 		} else {
-			r = rand.Intn(i)
-			if r < NUM_MTNS {
+			r := rand.Intn(i)
+			if r < num_mtns {
 				mountains[r] = mountain{name, height}
 			}
 		}
 	}
-	return
+	return mountains
 }
 
-func newGame(allMountains [NUM_MTNS]mountain) *data {
-	game := &data{
-		unsorted: make([]*mountain, len(allMountains)),
-		sorted:   make([]*mountain, 0, len(allMountains)),
+func createLinkedList(mountains []mountain) *mountainList {
+	list := &mountainList{}
+	for i := range mountains {
+		list.append(&mountains[i])
 	}
-	for i := range allMountains {
-		game.unsorted[i] = &allMountains[i]
-	}
-	return game
+	return list
 }
 
 func inputUser() (int, int) {
 	fmt.Print(INPUT_PROMPT)
 	var from, to int
-	_, err := fmt.Scanf("%d %d", &from, &to)
-	if err != nil {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input. Please try again.")
+			continue
+		}
+		input = strings.TrimSpace(input)
+		_, err = fmt.Sscanf(input, "%d %d", &from, &to)
+		if err == nil {
+			break
+		}
 		fmt.Println("Invalid input. Please enter two numbers.")
-		return inputUser()
 	}
 	return from, to
 }
 
-func isSorted(mountains []*mountain) bool {
-	var tmp, hightest int
-	for _, element := range mountains {
-		tmp = element.height
-		if tmp < hightest {
+func (list mountainList) isSorted() bool {
+	var tmp, highest int
+	current := list.head
+	for current != nil {
+		tmp = current.data.height
+		if tmp < highest {
 			return false
 		}
-		hightest = tmp
+		highest = tmp
+		current = current.next
 	}
 	return true
 }
 
-func (m *data) move(from int, to int) {
-	m.sorted = append(m.sorted, &mountain{})
-	copy(m.sorted[to+1:], m.sorted[to:])
-	m.sorted[to] = m.unsorted[from]
-	m.unsorted = append(m.unsorted[:from], m.unsorted[from+1:]...)
+func (list *mountainList) append(m *mountain) {
+	newNode := &mountainNode{data: m}
+	if list.head == nil {
+		list.head = newNode
+	} else {
+		current := list.head
+		for current.next != nil {
+			current = current.next
+		}
+		current.next = newNode
+	}
 }
 
-func printMountains(mountains []*mountain) {
-	for i, element := range mountains {
-		fmt.Printf(" %d: %s\n", i, element.name)
+func (list *mountainList) remove(index int) *mountain {
+	if list.head == nil {
+		return nil
+	}
+	if index == 0 {
+		removed := list.head
+		list.head = list.head.next
+		return removed.data
+	}
+	current := list.head
+	for i := 0; i < index-1 && current.next != nil; i++ {
+		current = current.next
+	}
+	if current.next == nil {
+		return nil
+	}
+	removed := current.next
+	current.next = current.next.next
+	return removed.data
+}
+
+func (list *mountainList) insertAt(index int, m *mountain) {
+	newNode := &mountainNode{data: m}
+	if index == 0 {
+		newNode.next = list.head
+		list.head = newNode
+		return
+	}
+	current := list.head
+	for i := 0; i < index-1 && current.next != nil; i++ {
+		current = current.next
+	}
+	newNode.next = current.next
+	current.next = newNode
+}
+
+func (list mountainList) printMountains() {
+	current := list.head
+	for i := 0; current != nil; i++ {
+		fmt.Printf(" %d: %s\n", i, current.data.name)
+		current = current.next
+	}
+}
+
+func (list mountainList) printMountainsWithHeight() {
+	current := list.head
+	for i := 0; current != nil; i++ {
+		fmt.Printf(" %d: %s, Height: %d\n", i, current.data.name, current.data.height)
+		current = current.next
 	}
 }
